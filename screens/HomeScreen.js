@@ -41,15 +41,15 @@ const HomeScreen = () => {
         <Card.Content>
           <Text variant="headlineMedium">Categories</Text>
           <List.Item
-            title="Professional Division"
+              title={<Text>Professional Division</Text>}
             left={() => <List.Icon icon="trophy" />}
           />
           <List.Item
-            title="Amateur Division"
+              title={<Text>Amateur Division</Text>}
             left={() => <List.Icon icon="medal" />}
           />
           <List.Item
-            title="Kids Division (Ages 8-12)"
+              title={<Text>Kids Division (Ages 8-12)</Text>}
             left={() => <List.Icon icon="star" />}
           />
         </Card.Content>
@@ -59,17 +59,17 @@ const HomeScreen = () => {
         <Card.Content>
           <Text variant="headlineMedium">Prizes</Text>
           <List.Item
-            title="1st Place"
+              title={<Text>1st Place</Text>}
             description="$1000 + Trophy"
             left={() => <List.Icon icon="crown" color="#FFD700" />}
           />
           <List.Item
-            title="2nd Place"
+              title={<Text>2nd Place</Text>}
             description="$500 + Medal"
             left={() => <List.Icon icon="medal" color="#C0C0C0" />}
           />
           <List.Item
-            title="3rd Place"
+              title={<Text>3rd Place</Text>}
             description="$250 + Medal"
             left={() => <List.Icon icon="medal" color="#CD7F32" />}
           />
@@ -82,7 +82,7 @@ const HomeScreen = () => {
           <List.AccordionGroup>
             <List.Accordion
               id="faq1"
-              title="What equipment do I need?"
+                title={<Text>What equipment do I need?</Text>}
               left={() => <List.Icon icon="basket" />}>
               <List.Item
                 description="You'll need your own basket and throwing equipment. Basic safety gear is provided, but you're welcome to bring your own."
@@ -92,7 +92,7 @@ const HomeScreen = () => {
 
             <List.Accordion
               id="faq2"
-              title="How do I register?"
+                title={<Text>How do I register?</Text>}
               left={() => <List.Icon icon="account-plus" />}>
               <List.Item
                 description="Click the 'Register Now' button above or visit our website. Registration closes one week before the event."
@@ -102,7 +102,7 @@ const HomeScreen = () => {
 
             <List.Accordion
               id="faq3"
-              title="What are the rules?"
+                title={<Text>What are the rules?</Text>}
               left={() => <List.Icon icon="gavel" />}>
               <List.Item
                 description="Each participant gets 3 throws per round. The basket must land within the designated area. Professional division has additional technical requirements."
@@ -112,7 +112,7 @@ const HomeScreen = () => {
 
             <List.Accordion
               id="faq4"
-              title="Is there a registration fee?"
+                title={<Text>Is there a registration fee?</Text>}
               left={() => <List.Icon icon="cash" />}>
               <List.Item
                 description="Yes, registration fees are $50 for Professional, $30 for Amateur, and $20 for Kids division. Includes event t-shirt and lunch."
@@ -122,7 +122,7 @@ const HomeScreen = () => {
 
             <List.Accordion
               id="faq5"
-              title="Is this a real event?"
+                title={<Text>Is this a real event?</Text>}
               left={() => <List.Icon icon="basket" />}>
               <List.Item description="No." descriptionNumberOfLines={1} />
             </List.Accordion>
