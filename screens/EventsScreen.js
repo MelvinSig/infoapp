@@ -7,7 +7,7 @@ const EventsScreen = ({navigation}) => (
     <Text>Events!</Text>
     <Pressable
       onPress={() => navigation.navigate("EventsSecond")}>
-        
+        //comment
         <View
           style={{
             borderWidth: 5,
