@@ -9,6 +9,9 @@ export default function AdminUnfitLogScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [expandedIndex, setExpandedIndex] = useState(null);
+  const [activeIsAdmin, setActiveIsAdmin] = useState(false);
+  const [fromDate, setFromDate] = useState(''); // YYYY-MM-DD
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -16,6 +19,25 @@ export default function AdminUnfitLogScreen({ navigation }) {
         const raw = await AsyncStorage.getItem(UNFIT_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         setEntries(parsed);
+        // check activeProfile admin flag
+        const activeRaw = await AsyncStorage.getItem('activeProfile');
+        if (activeRaw) {
+          try {
+            const ap = JSON.parse(activeRaw);
+            setActiveIsAdmin(!!ap.isAdmin);
+            if (!ap.isAdmin) {
+              Alert.alert('Unauthorized', 'Admin access required to view this screen.', [
+                { text: 'OK', onPress: () => navigation.goBack() }
+              ]);
+            }
+          } catch (e) {
+            // ignore parsing errors
+          }
+        } else {
+          Alert.alert('Unauthorized', 'Admin access required to view this screen.', [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]);
+        }
       } catch (e) {
         console.log('load unfit', e);
       } finally {
@@ -48,13 +70,57 @@ export default function AdminUnfitLogScreen({ navigation }) {
 
   const filtered = useMemo(() => {
     const q = (query || '').trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter((e) => {
-      const email = (e.ownerEmail || e.email || '').toLowerCase();
-      const reason = JSON.stringify(e.failedQuestions || e.answers || e.reason || '').toLowerCase();
-      return email.includes(q) || reason.includes(q) || (e.timestamp || '').toLowerCase().includes(q);
+    let out = entries || [];
+    if (q) {
+      out = out.filter((e) => {
+        const email = (e.ownerEmail || e.email || '').toLowerCase();
+        const reason = JSON.stringify(e.failedQuestions || e.answers || e.reason || '').toLowerCase();
+        return email.includes(q) || reason.includes(q) || (e.timestamp || '').toLowerCase().includes(q);
+      });
+    }
+    // date range
+    const f = (fromDate || '').trim();
+    const t = (toDate || '').trim();
+    if (f) {
+      const fTime = new Date(f + 'T00:00:00').getTime();
+      out = out.filter((e) => (e.timestamp ? new Date(e.timestamp).getTime() : 0) >= fTime);
+    }
+    if (t) {
+      const tTime = new Date(t + 'T23:59:59').getTime();
+      out = out.filter((e) => (e.timestamp ? new Date(e.timestamp).getTime() : 0) <= tTime);
+    }
+    return out;
+  }, [entries, query, fromDate, toDate]);
+
+  const saveEntries = async (next) => {
+    try {
+      await AsyncStorage.setItem(UNFIT_KEY, JSON.stringify(next));
+      setEntries(next);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save changes.');
+    }
+  };
+
+  const confirmDelete = (entry) => {
+    Alert.alert('Confirm', 'Delete this unfit entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        const next = (entries || []).filter((e) => !(e.timestamp === entry.timestamp && (e.ownerEmail || e.email) === (entry.ownerEmail || entry.email)));
+        await saveEntries(next);
+        Alert.alert('Deleted', 'Entry removed.');
+      } }
+    ]);
+  };
+
+  const toggleReviewed = async (entry, mark = true) => {
+    const next = (entries || []).map((e) => {
+      if (e.timestamp === entry.timestamp && (e.ownerEmail || e.email) === (entry.ownerEmail || entry.email)) {
+        return { ...e, reviewed: mark, reviewedAt: mark ? new Date().toISOString() : undefined };
+      }
+      return e;
     });
-  }, [entries, query]);
+    await saveEntries(next);
+  };
 
   const exportJson = async () => {
     try {
@@ -81,6 +147,10 @@ export default function AdminUnfitLogScreen({ navigation }) {
           <Text style={styles.clearText}>Clear all</Text>
         </TouchableOpacity>
       </View>
+      <View style={styles.dateRow}>
+        <TextInput value={fromDate} onChangeText={setFromDate} placeholder="From (YYYY-MM-DD)" style={styles.dateInput} />
+        <TextInput value={toDate} onChangeText={setToDate} placeholder="To (YYYY-MM-DD)" style={styles.dateInput} />
+      </View>
       <TouchableOpacity style={styles.exportBtn} onPress={exportJson}>
         <Text style={styles.exportText}>Export</Text>
       </TouchableOpacity>
@@ -89,16 +159,28 @@ export default function AdminUnfitLogScreen({ navigation }) {
         {loading ? <Text>Loading...</Text> : (
           filtered.length === 0 ? <Text style={styles.empty}>No unfit entries found.</Text> : (
             filtered.map((e, i) => (
-              <TouchableOpacity key={i} style={styles.card} onPress={() => toggleExpand(i)}>
-                <View>
-                  <Text style={styles.cardTitle}>{e.ownerEmail || e.email || 'unknown'}</Text>
-                  <Text style={styles.cardText}>{e.timestamp ? new Date(e.timestamp).toLocaleString() : 'no timestamp'}</Text>
-                  {!expandedIndex === i && <Text style={styles.cardSnippet}>{(e.reason || JSON.stringify(e.failedQuestions || e.answers || {})).slice(0, 120)}</Text>}
-                  {expandedIndex === i && (
-                    <Text style={styles.cardDetail}>{JSON.stringify(e, null, 2)}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <View key={i} style={styles.cardWrap}>
+                <TouchableOpacity style={styles.card} onPress={() => toggleExpand(i)}>
+                  <View>
+                    <Text style={styles.cardTitle}>{e.ownerEmail || e.email || 'unknown'}</Text>
+                    <Text style={styles.cardText}>{e.timestamp ? new Date(e.timestamp).toLocaleString() : 'no timestamp'}</Text>
+                    {!expandedIndex === i && <Text style={styles.cardSnippet}>{(e.reason || JSON.stringify(e.failedQuestions || e.answers || {})).slice(0, 120)}</Text>}
+                    {expandedIndex === i && (
+                      <Text style={styles.cardDetail}>{JSON.stringify(e, null, 2)}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                {expandedIndex === i && (
+                  <View style={styles.entryActions}>
+                    <TouchableOpacity style={[styles.smallBtn, { backgroundColor: '#d9534f' }]} onPress={() => confirmDelete(e)}>
+                      <Text style={styles.smallBtnText}>Delete</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.smallBtn, { backgroundColor: e.reviewed ? '#6c757d' : '#28a745' }]} onPress={() => toggleReviewed(e, !e.reviewed)}>
+                      <Text style={styles.smallBtnText}>{e.reviewed ? 'Unmark' : 'Mark reviewed'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             ))
           )
         )}
@@ -122,5 +204,12 @@ const styles = StyleSheet.create({
   clearText: { color: '#fff', fontWeight: '700' },
   exportBtn: { position: 'absolute', right: 12, top: 12, backgroundColor: '#2a85ff', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
   exportText: { color: '#fff', fontWeight: '700' },
-  empty: { textAlign: 'center', marginTop: 12, color: '#666' }
+  empty: { textAlign: 'center', marginTop: 12, color: '#666' },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  dateInput: { flex: 1, backgroundColor: '#fff', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#ddd', marginRight: 8 },
+  cardWrap: { marginBottom: 10 },
+  entryActions: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 6 },
+  smallBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, marginLeft: 8 },
+  smallBtnText: { color: '#fff', fontWeight: '700' }
 });
+
